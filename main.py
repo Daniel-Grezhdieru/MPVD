@@ -5,23 +5,18 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QObject
 from UI_1 import *
 
+
 class OutputLogger(QObject):
     emit_write = QtCore.pyqtSignal(str)
-
-    # class Severity:
-    #     DEBUG = 0
-    #     ERROR = 1
 
     def __init__(self, io_stream):
         super().__init__()
 
         self.io_stream = io_stream
-        # self.severity = severity
 
     def write(self, text):
         self.io_stream.write(text)
         self.emit_write.emit(text)
-        # self.emit_write.emit(text, self.severity)
 
     def flush(self):
         self.io_stream.flush()
@@ -36,9 +31,8 @@ sys.stderr = OUTPUT_LOGGER_STDERR
 # sys.stdin  = OUTPUT_LOGGER_STDIN
 
 
-class downloader(QtCore.QThread):
+class Downloader(QtCore.QThread):
     mysignal = QtCore.pyqtSignal(str)
-
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -57,8 +51,10 @@ class downloader(QtCore.QThread):
         ydl_opts = {'listformats': 'all'}
         if self.useproxy == True:
             ydl_opts['proxy'] = '{0}'.format(self.proxy)
+        if self.noplaylist == True:
+            ydl_opts['noplaylist'] = 'yes'
         try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:  # yt_dlp.YoutubeDL(ydl_opts)
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([self.url])
         except:
             print("Возникла ошибка, проверьте правильность введенных данных, а так же подключение к интернету")
@@ -75,11 +71,11 @@ class downloader(QtCore.QThread):
             if self.quality != "Авто (лучшее)" and self.v_ext == "Авто" and self.a_ext == "Авто":
                 ydl_opts['format'] = 'bv*[height<={0}]+ba/b[height<={0}]'.format(self.quality)
             if self.quality != "Авто (лучшее)" and self.v_ext != "Авто" and self.a_ext != "Авто":
-                ydl_opts['format'] = 'bv*[ext={1}][height<={0}]+ba*[ext={2}]/b[height<={0}]'.format(self.quality,self.v_ext,self.a_ext)
+                ydl_opts['format'] = 'bv*[ext={1}][height<={0}]+ba*[ext={2}]/b[height<={0}]'.format(self.quality, self.v_ext, self.a_ext)
             if self.quality != "Авто (лучшее)" and self.v_ext != "Авто" and self.a_ext == "Авто":
-                ydl_opts['format'] = 'bv*[ext={1}][height<={0}]+ba/b[height<={0}]'.format(self.quality,self.v_ext)
+                ydl_opts['format'] = 'bv*[ext={1}][height<={0}]+ba/b[height<={0}]'.format(self.quality, self.v_ext)
             if self.quality != "Авто (лучшее)" and self.v_ext == "Авто" and self.a_ext != "Авто":
-                ydl_opts['format'] = 'bv*[height<={0}]+ba*[ext={1}]/b[height<={0}]'.format(self.quality,self.a_ext)
+                ydl_opts['format'] = 'bv*[height<={0}]+ba*[ext={1}]/b[height<={0}]'.format(self.quality, self.a_ext)
             if self.only_audio == True and self.a_ext == "Авто":
                 ydl_opts['format'] = 'ba'
             if self.only_audio == True and self.a_ext != "Авто":
@@ -101,7 +97,7 @@ class downloader(QtCore.QThread):
 
             self.mysignal.emit('finish')
 
-    def init_args(self,link, quality, proxy, writesubtitles, only_audio, noplaylist, useproxy,v_ext,a_ext, list_formats):
+    def init_args(self, link, quality, proxy, writesubtitles, only_audio, noplaylist, useproxy, v_ext, a_ext, list_formats):
         self.url = link
         self.quality = quality
         self.proxy = proxy
@@ -114,10 +110,9 @@ class downloader(QtCore.QThread):
         self.list_format = list_formats
 
 
-
-class gui(QtWidgets.QMainWindow):
+class Gui(QtWidgets.QMainWindow):
     def __init__(self, parent = None):
-        super(gui,self).__init__(parent)
+        super(Gui, self).__init__(parent)
 
 
         self.ui = Ui_Downloader()
@@ -138,7 +133,7 @@ class gui(QtWidgets.QMainWindow):
         self.ui.pushButton_2.clicked.connect(self.get_folder)
         self.ui.pushButton.clicked.connect(self.start)
         self.ui.pushButton_3.clicked.connect(self.list_formats)
-        self.mythread = downloader()
+        self.mythread = Downloader()
         self.mythread.mysignal.connect(self.handler)
         self.ui.comboBox.addItems(["Авто (лучшее)","360", "480",
                         "720", "1080", "1440", "2160"])
@@ -149,14 +144,7 @@ class gui(QtWidgets.QMainWindow):
         self.ui.comboBox_2.setEnabled(False)
         self.ui.comboBox_3.setEnabled(False)
         self.ui.comboBox.currentTextChanged.connect(self.enable_combo)
-        # font = QtGui.QFont()
-        # font.setPointSize(6)
-        # self.ui.plainTextEdit.setFont(font)
 
-    # def paintEvent(self, event) -> None:
-    #     painter = QPainter(self)
-    #     pixmap = QPixmap("./logo1_4_3.png")
-    #     painter.drawPixmap(self.rect(), pixmap)
     def list_formats(self):
         if len(self.ui.lineEdit.text()) > 5:
                 link = self.ui.lineEdit.text()
@@ -166,7 +154,7 @@ class gui(QtWidgets.QMainWindow):
                 proxy = self.ui.lineEdit_2.text()
                 writesubtitles = None
                 only_audio = None
-                noplaylist = None
+                noplaylist = self.ui.checkBox_4.isChecked()
                 useproxy = self.ui.checkBox.isChecked()
                 list_formats = True
                 self.mythread.init_args(link, quality, proxy, writesubtitles, only_audio, noplaylist, useproxy, v_ext, a_ext, list_formats)
@@ -182,7 +170,6 @@ class gui(QtWidgets.QMainWindow):
         else:
             self.ui.comboBox_2.setEnabled(False)
             self.ui.comboBox_3.setEnabled(False)
-
 
     def start(self):
         if len(self.ui.lineEdit.text()) > 5:
@@ -209,31 +196,19 @@ class gui(QtWidgets.QMainWindow):
         if self.download_folder != '':
            os.chdir(self.download_folder)
 
-    # def handler(self, value):
-    #     if value == 'finish':
-    #         self.locker(False)
-    #     else:
-    #         self.ui.plainTextEdit.appendPlainText(value)
-
     def handler(self, text):
-        # text = repr(text)
-        # if severity == OutputLogger.Severity.ERROR:
-        #     text = '<b>{}</b>'.format(text)
         if text == 'finish':
             self.locker(False)
         self.ui.plainTextEdit.appendPlainText(text)
 
-
     def locker(self, lock_value):
-        base = [self.ui.pushButton,self.ui.pushButton_2, self.ui.pushButton_3]
-
+        base = [self.ui.pushButton, self.ui.pushButton_2, self.ui.pushButton_3]
         for item in base:
             item.setDisabled(lock_value)
 
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-    win = gui()
-    # win.setStyleSheet("QMainWindow{\n""background-image:url(./images/Background(900x600).png)\n""}\n""")
+    win = Gui()
     win.show()
     sys.exit(app.exec_())
